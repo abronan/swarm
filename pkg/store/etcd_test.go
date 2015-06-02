@@ -7,11 +7,11 @@ import (
 )
 
 func makeEtcdClient(t *testing.T) Store {
-	var client = "localhost:4001"
+	client := "localhost:4001"
 
 	// Initialize a new store with consul
 	kv, err := NewStore(
-		ETCD, // or "consul"
+		ETCD,
 		[]string{client},
 		&Config{
 			ConnectionTimeout: 10 * time.Second,

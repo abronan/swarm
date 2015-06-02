@@ -6,13 +6,12 @@ import (
 	"time"
 )
 
-var client = "localhost:8500"
-
 func makeConsulClient(t *testing.T) Store {
+	client := "localhost:8500"
 
 	// Initialize a new store with consul
 	kv, err := NewStore(
-		CONSUL, // or "consul"
+		CONSUL,
 		[]string{client},
 		&Config{
 			ConnectionTimeout: 10 * time.Second,

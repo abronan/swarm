@@ -7,11 +7,11 @@ import (
 )
 
 func makeZkClient(t *testing.T) Store {
-	var client = "localhost:2181"
+	client := "localhost:2181"
 
-	// Initialize a new store with consul
+	// Initialize a new store with zookeeper
 	kv, err := NewStore(
-		ZK, // or "consul"
+		ZK,
 		[]string{client},
 		&Config{
 			ConnectionTimeout: 10 * time.Second,
