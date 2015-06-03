@@ -66,7 +66,7 @@ func TestEtcdPutGetDelete(t *testing.T) {
 	}
 }
 
-func TestEtcdCompareAndSwap(t *testing.T) {
+func TestEtcdAtomicPut(t *testing.T) {
 	kv := makeEtcdClient(t)
 
 	key := "hello"
@@ -104,6 +104,10 @@ func TestEtcdCompareAndSwap(t *testing.T) {
 	if err == nil && success {
 		t.Fatalf("unexpected CAS success: %#v", success)
 	}
+}
+
+func TestEtcdAtomicDelete(t *testing.T) {
+	// TODO
 }
 
 func TestEtcdLockUnlock(t *testing.T) {

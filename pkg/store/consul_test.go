@@ -66,7 +66,7 @@ func TestConsulPutGetDelete(t *testing.T) {
 	}
 }
 
-func TestConsulCompareAndSwap(t *testing.T) {
+func TestConsulAtomicPut(t *testing.T) {
 	kv := makeConsulClient(t)
 
 	key := "hello"
@@ -104,6 +104,10 @@ func TestConsulCompareAndSwap(t *testing.T) {
 	if err == nil && success {
 		t.Fatalf("unexpected CAS success: %#v", success)
 	}
+}
+
+func TestConsulAtomicDelete(t *testing.T) {
+	// TODO
 }
 
 func TestConsulLockUnlock(t *testing.T) {

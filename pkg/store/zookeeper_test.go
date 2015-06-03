@@ -66,7 +66,7 @@ func TestZkPutGetDelete(t *testing.T) {
 	}
 }
 
-func TestZkCompareAndSwap(t *testing.T) {
+func TestZkAtomicPut(t *testing.T) {
 	kv := makeZkClient(t)
 
 	key := "hello"
@@ -104,6 +104,10 @@ func TestZkCompareAndSwap(t *testing.T) {
 	if err == nil && success {
 		t.Fatalf("unexpected CAS success: %#v", success)
 	}
+}
+
+func TestZkAtomicDelete(t *testing.T) {
+	// TODO
 }
 
 func TestZkLockUnlock(t *testing.T) {
