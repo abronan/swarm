@@ -194,8 +194,7 @@ func (s *Zookeeper) WatchTree(prefix string, stopCh <-chan struct{}) (<-chan []*
 
 // List the content of a given prefix
 func (s *Zookeeper) List(prefix string) ([]*KVPair, error) {
-	fprefix := normalize(prefix)
-	keys, stat, err := s.client.Children(fprefix)
+	keys, stat, err := s.client.Children(normalize(prefix))
 	if err != nil {
 		return nil, err
 	}

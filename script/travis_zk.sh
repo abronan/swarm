@@ -1,10 +1,9 @@
 #!/bin/bash
 
-if [  $# -gt 0 ]
-    then
-    ZK_VERSION="$1";
-    else
-    ZK_VERSION="3.4.6";
+if [  $# -gt 0 ] ; then
+    ZK_VERSION="$1"
+else
+    ZK_VERSION="3.4.6"
 fi
 
 wget "http://mirrors.ukfast.co.uk/sites/ftp.apache.org/zookeeper/stable/zookeeper-${ZK_VERSION}.tar.gz"

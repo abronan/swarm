@@ -55,6 +55,10 @@ func TestEtcdPutGetDelete(t *testing.T) {
 	assert.Nil(t, pair)
 }
 
+func TestEtcdWatch(t *testing.T) {
+	// TODO
+}
+
 func TestEtcdAtomicPut(t *testing.T) {
 	kv := makeEtcdClient(t)
 

@@ -55,6 +55,10 @@ func TestConsulPutGetDelete(t *testing.T) {
 	assert.Nil(t, pair)
 }
 
+func TestConsulWatch(t *testing.T) {
+	// TODO
+}
+
 func TestConsulAtomicPut(t *testing.T) {
 	kv := makeConsulClient(t)
 

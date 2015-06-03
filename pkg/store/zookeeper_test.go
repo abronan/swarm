@@ -55,6 +55,10 @@ func TestZkPutGetDelete(t *testing.T) {
 	assert.Nil(t, pair)
 }
 
+func TestZkWatch(t *testing.T) {
+	// TODO
+}
+
 func TestZkAtomicPut(t *testing.T) {
 	kv := makeZkClient(t)
 

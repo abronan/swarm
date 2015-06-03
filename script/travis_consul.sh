@@ -1,10 +1,9 @@
 #!/bin/bash
 
-if [  $# -gt 0 ]
-    then
-    CONSUL_VERSION="$1";
-    else
-    CONSUL_VERSION="0.5.2";
+if [  $# -gt 0 ] ; then
+    CONSUL_VERSION="$1"
+else
+    CONSUL_VERSION="0.5.2"
 fi
 
 # install consul
