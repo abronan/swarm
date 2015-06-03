@@ -217,12 +217,40 @@ func TestConsulPutEphemeral(t *testing.T) {
 	if err == nil && pair != nil {
 		t.Fatalf("unexpected success of Get for: %v", secondKey)
 	}
+}
 
-	// Clean keys
-	if err := kv.Delete("ploup"); err != nil {
+func TestConsulList(t *testing.T) {
+	kv := makeConsulClient(t)
+
+	prefix := "nodes/"
+
+	firstKey := "nodes/first"
+	firstValue := []byte("first")
+
+	secondKey := "nodes/second"
+	secondValue := []byte("second")
+
+	// Put the first key
+	if err := kv.Put(firstKey, firstValue, nil); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := kv.Delete("plop"); err != nil {
+
+	// Put the second key
+	if err := kv.Put(secondKey, secondValue, nil); err != nil {
 		t.Fatalf("err: %v", err)
+	}
+
+	// List should work and return the two correct values
+	pairs, err := kv.List(prefix)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !bytes.Equal(pairs[0].Value, firstValue) {
+		t.Fatalf("unexpected value: %#v", pairs[0].Value)
+	}
+
+	if !bytes.Equal(pairs[1].Value, secondValue) {
+		t.Fatalf("unexpected value: %#v", pairs[1].Value)
 	}
 }

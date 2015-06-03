@@ -212,3 +212,40 @@ func TestZkPutEphemeral(t *testing.T) {
 		t.Fatalf("unexpected success of Get for: %v", secondKey)
 	}
 }
+
+func TestZkList(t *testing.T) {
+	kv := makeZkClient(t)
+
+	// FIXME key parsing with last `/`
+	prefix := "nodes"
+
+	firstKey := "nodes/first"
+	firstValue := []byte("first")
+
+	secondKey := "nodes/second"
+	secondValue := []byte("second")
+
+	// Put the first key
+	if err := kv.Put(firstKey, firstValue, nil); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Put the second key
+	if err := kv.Put(secondKey, secondValue, nil); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// List should work and return the two correct values
+	pairs, err := kv.List(prefix)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !bytes.Equal(pairs[0].Value, firstValue) {
+		t.Fatalf("unexpected value: %#v", pairs[0].Value)
+	}
+
+	if !bytes.Equal(pairs[1].Value, secondValue) {
+		t.Fatalf("unexpected value: %#v", pairs[1].Value)
+	}
+}
