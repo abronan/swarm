@@ -73,7 +73,6 @@ func TestConsulWatch(t *testing.T) {
 
 	// Update loop
 	go func() {
-		kv := makeConsulClient(t)
 		timeout := time.After(1 * time.Second)
 		tick := time.Tick(250 * time.Millisecond)
 		for {
@@ -143,7 +142,7 @@ func TestConsulAtomicPut(t *testing.T) {
 func TestConsulAtomicDelete(t *testing.T) {
 	kv := makeConsulClient(t)
 
-	key := "hello"
+	key := "atomic"
 	value := []byte("world")
 
 	// Put the key

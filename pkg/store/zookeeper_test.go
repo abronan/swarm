@@ -142,7 +142,7 @@ func TestZkAtomicPut(t *testing.T) {
 func TestZkAtomicDelete(t *testing.T) {
 	kv := makeZkClient(t)
 
-	key := "hello"
+	key := "atomic"
 	value := []byte("world")
 
 	// Put the key

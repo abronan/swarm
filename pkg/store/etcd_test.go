@@ -143,7 +143,7 @@ func TestEtcdAtomicPut(t *testing.T) {
 func TestEtcdAtomicDelete(t *testing.T) {
 	kv := makeEtcdClient(t)
 
-	key := "hello"
+	key := "atomic"
 	value := []byte("world")
 
 	// Put the key
