@@ -87,7 +87,37 @@ func TestConsulAtomicPut(t *testing.T) {
 }
 
 func TestConsulAtomicDelete(t *testing.T) {
-	// TODO
+	kv := makeConsulClient(t)
+
+	key := "hello"
+	value := []byte("world")
+
+	// Put the key
+	err := kv.Put(key, value, nil)
+	assert.NoError(t, err)
+
+	// Get should return the value and an incremented index
+	pair, err := kv.Get(key)
+	assert.NoError(t, err)
+	if assert.NotNil(t, pair) {
+		assert.NotNil(t, pair.Value)
+	}
+	assert.Equal(t, pair.Value, value)
+	assert.NotEqual(t, pair.LastIndex, 0)
+
+	tempIndex := pair.LastIndex
+
+	// AtomicDelete should fail
+	pair.LastIndex = 0
+	success, err := kv.AtomicDelete(key, pair)
+	assert.Error(t, err)
+	assert.False(t, success)
+
+	// AtomicDelete should succeed
+	pair.LastIndex = tempIndex
+	success, err = kv.AtomicDelete(key, pair)
+	assert.NoError(t, err)
+	assert.True(t, success)
 }
 
 func TestConsulLockUnlock(t *testing.T) {
