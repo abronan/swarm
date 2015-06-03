@@ -235,11 +235,21 @@ func TestEtcdList(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if !bytes.Equal(pairs[0].Value, firstValue) {
-		t.Fatalf("unexpected value: %#v", pairs[0].Value)
+	if len(pairs) != 2 {
+		t.Fatalf("unexpected size for list of keys: %#v", len(pairs))
 	}
 
-	if !bytes.Equal(pairs[1].Value, secondValue) {
-		t.Fatalf("unexpected value: %#v", pairs[1].Value)
+	// Check pairs, those are not necessarily in Put order
+	for _, pair := range pairs {
+		if pair.Key == firstKey {
+			if !bytes.Equal(pair.Value, firstValue) {
+				t.Fatalf("unexpected value: %#v", string(pair.Value))
+			}
+		}
+		if pair.Key == secondKey {
+			if !bytes.Equal(pair.Value, secondValue) {
+				t.Fatalf("unexpected value: %#v", string(pair.Value))
+			}
+		}
 	}
 }
