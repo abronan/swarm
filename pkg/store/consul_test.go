@@ -204,7 +204,7 @@ func TestConsulPutEphemeral(t *testing.T) {
 	}
 
 	// Let the session expire
-	time.Sleep(4 * time.Second)
+	time.Sleep(6 * time.Second)
 
 	// Get on firstKey shouldn't work
 	pair, err = kv.Get(firstKey)
