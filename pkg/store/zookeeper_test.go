@@ -56,7 +56,56 @@ func TestZkPutGetDelete(t *testing.T) {
 }
 
 func TestZkWatch(t *testing.T) {
-	// TODO
+	kv := makeZkClient(t)
+
+	key := "hello"
+	value := []byte("world")
+	newValue := []byte("world!")
+
+	// Put the key
+	err := kv.Put(key, value, nil)
+	assert.NoError(t, err)
+
+	stopCh := make(<-chan struct{})
+	events, err := kv.Watch(key, stopCh)
+	assert.NoError(t, err)
+	assert.NotNil(t, events)
+
+	// Update loop
+	go func() {
+		timeout := time.After(1 * time.Second)
+		tick := time.Tick(250 * time.Millisecond)
+		for {
+			select {
+			case <-timeout:
+				return
+			case <-tick:
+				err := kv.Put(key, newValue, nil)
+				if assert.NoError(t, err) {
+					continue
+				}
+				return
+			}
+		}
+	}()
+
+	// Check events
+	eventCount := 1
+	for event := range events {
+		// We should see our value as a first event
+		if eventCount == 1 {
+			assert.Equal(t, event.Key, key)
+			assert.Equal(t, event.Value, value)
+		} else {
+			assert.Equal(t, event.Key, key)
+			assert.Equal(t, event.Value, newValue)
+		}
+		eventCount++
+		// We received all the events we wanted to check
+		if eventCount >= 4 {
+			break
+		}
+	}
 }
 
 func TestZkAtomicPut(t *testing.T) {
