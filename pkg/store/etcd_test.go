@@ -109,6 +109,65 @@ func TestEtcdWatch(t *testing.T) {
 	}
 }
 
+func TestEtcdWatchTree(t *testing.T) {
+	kv := makeEtcdClient(t)
+
+	// FIXME General key formatting issue
+	dir := "/tree"
+
+	node1 := "tree/node1"
+	value1 := []byte("node1")
+
+	node2 := "tree/node2"
+	value2 := []byte("node2")
+
+	node3 := "tree/node3"
+	value3 := []byte("node3")
+
+	newValue := []byte("world!")
+
+	err := kv.Put(node1, value1, nil)
+	assert.NoError(t, err)
+	err = kv.Put(node2, value2, nil)
+	assert.NoError(t, err)
+	err = kv.Put(node3, value3, nil)
+	assert.NoError(t, err)
+
+	stopCh := make(<-chan struct{})
+	events, err := kv.WatchTree(dir, stopCh)
+	assert.NoError(t, err)
+	assert.NotNil(t, events)
+
+	// Update loop
+	go func() {
+		timeout := time.After(1 * time.Second)
+		tick := time.Tick(250 * time.Millisecond)
+		for {
+			select {
+			case <-timeout:
+				return
+			case <-tick:
+				err := kv.Put(node1, newValue, nil)
+				if assert.NoError(t, err) {
+					continue
+				}
+				return
+			}
+		}
+	}()
+
+	// Check events
+	eventCount := 1
+	for event := range events {
+		assert.Equal(t, len(event), 3)
+		eventCount++
+		// We received all the events we wanted to check
+		if eventCount >= 4 {
+			break
+		}
+	}
+}
+
 func TestEtcdAtomicPut(t *testing.T) {
 	kv := makeEtcdClient(t)
 
