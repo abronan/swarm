@@ -11,5 +11,9 @@ fi
 wget "https://dl.bintray.com/mitchellh/consul/${CONSUL_VERSION}_linux_amd64.zip"
 unzip "${CONSUL_VERSION}_linux_amd64.zip"
 
+# make config for minimum ttl
+touch config.json
+echo "{\"session_ttl_min\": \"2s\"}" >> config.json
+
 # check
 ./consul --version
