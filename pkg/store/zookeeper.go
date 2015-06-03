@@ -194,22 +194,20 @@ func (s *Zookeeper) WatchTree(prefix string, stopCh <-chan struct{}) (<-chan []*
 
 // List the content of a given prefix
 func (s *Zookeeper) List(prefix string) ([]*KVPair, error) {
-	prefix = normalize(prefix)
-	keys, stat, err := s.client.Children(prefix)
+	fprefix := normalize(prefix)
+	keys, stat, err := s.client.Children(fprefix)
 	if err != nil {
 		return nil, err
 	}
 	kv := []*KVPair{}
 	for _, key := range keys {
-		// FIXME Formatting
-		prefix = strings.TrimLeft(prefix, "/")
 		pair, err := s.Get(prefix + normalize(key))
 		if err != nil {
 			return nil, err
 		}
 		kv = append(kv, &KVPair{key, []byte(pair.Value), uint64(stat.Version)})
 	}
-	return kv, err
+	return kv, nil
 }
 
 // DeleteTree deletes a range of keys based on prefix
