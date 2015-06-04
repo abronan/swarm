@@ -93,7 +93,7 @@ func TestZkWatch(t *testing.T) {
 	for {
 		select {
 		case event := <-events:
-			// We should see our value as a first event
+			assert.NotNil(t, event)
 			if eventCount == 1 {
 				assert.Equal(t, event.Key, key)
 				assert.Equal(t, event.Value, value)
@@ -104,14 +104,14 @@ func TestZkWatch(t *testing.T) {
 			eventCount++
 			// We received all the events we wanted to check
 			if eventCount >= 4 {
-				break
+				return
 			}
-
+		case <-stopCh:
+			return
 		}
 	}
 }
 
-/*
 func TestZkWatchTree(t *testing.T) {
 	kv := makeZkClient(t)
 
@@ -142,17 +142,19 @@ func TestZkWatchTree(t *testing.T) {
 
 	// Update loop
 	go func() {
-		timeout := time.After(1 * time.Second)
+		timeout := time.After(750 * time.Second)
 		tick := time.Tick(250 * time.Millisecond)
-		counter := 1
 		for {
 			select {
 			case <-timeout:
 				return
 			case <-tick:
-				err := kv.Put(node1, []byte(string(newValue)+strconv.Itoa(counter)), nil)
+				// Zookeeper special case, only added and deleted
+				// nodes triggers the ChildrenW
+				err := kv.Put(node1, newValue, nil)
 				if assert.NoError(t, err) {
-					counter++
+					err = kv.Delete(node1)
+					assert.NoError(t, err)
 					continue
 				}
 				return
@@ -160,20 +162,23 @@ func TestZkWatchTree(t *testing.T) {
 		}
 	}()
 
+	// Check for updates
 	eventCount := 1
 	for {
 		select {
-		case entries := <-events:
-			assert.Equal(t, len(entries), 3)
+		case event := <-events:
+			assert.NotNil(t, event)
 			eventCount++
 			// We received all the events we wanted to check
-			if eventCount >= 4 {
-				break
+			if eventCount >= 3 {
+				return
 			}
+		case <-stopCh:
+			return
 		}
 	}
 }
-*/
+
 func TestZkAtomicPut(t *testing.T) {
 	kv := makeZkClient(t)
 

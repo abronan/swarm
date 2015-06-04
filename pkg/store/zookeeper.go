@@ -187,7 +187,7 @@ func (s *Zookeeper) WatchTree(prefix string, stopCh <-chan struct{}) (<-chan []*
 					}
 				}
 			case <-stopCh:
-				// There is no way to stop GetW so just quit
+				// There is no way to stop ChildrenW so just quit
 				return
 			}
 		}

@@ -89,21 +89,25 @@ func TestConsulWatch(t *testing.T) {
 		}
 	}()
 
-	// Check events
 	eventCount := 1
-	for event := range events {
-		// We should see our value as a first event
-		if eventCount == 1 {
-			assert.Equal(t, event.Key, key)
-			assert.Equal(t, event.Value, value)
-		} else {
-			assert.Equal(t, event.Key, key)
-			assert.Equal(t, event.Value, newValue)
-		}
-		eventCount++
-		// We received all the events we wanted to check
-		if eventCount >= 4 {
-			break
+	for {
+		select {
+		case event := <-events:
+			assert.NotNil(t, event)
+			if eventCount == 1 {
+				assert.Equal(t, event.Key, key)
+				assert.Equal(t, event.Value, value)
+			} else {
+				assert.Equal(t, event.Key, key)
+				assert.Equal(t, event.Value, newValue)
+			}
+			eventCount++
+			// We received all the events we wanted to check
+			if eventCount >= 4 {
+				return
+			}
+		case <-stopCh:
+			return
 		}
 	}
 }
@@ -154,14 +158,20 @@ func TestConsulWatchTree(t *testing.T) {
 		}
 	}()
 
-	// Check events
+	// Check for updates
 	eventCount := 1
-	for event := range events {
-		assert.Equal(t, len(event), 3)
-		eventCount++
-		// We received all the events we wanted to check
-		if eventCount >= 4 {
-			break
+	for {
+		select {
+		case event := <-events:
+			assert.NotNil(t, event)
+			assert.Equal(t, len(event), 3)
+			eventCount++
+			// We received all the events we wanted to check
+			if eventCount >= 4 {
+				return
+			}
+		case <-stopCh:
+			return
 		}
 	}
 }
