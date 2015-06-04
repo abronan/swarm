@@ -142,7 +142,7 @@ func TestZkWatchTree(t *testing.T) {
 
 	// Update loop
 	go func() {
-		timeout := time.After(750 * time.Second)
+		timeout := time.After(750 * time.Millisecond)
 		tick := time.Tick(250 * time.Millisecond)
 		for {
 			select {
