@@ -28,6 +28,9 @@ type etcdLock struct {
 const (
 	defaultLockTTL    = 20 * time.Second
 	defaultUpdateTime = 5 * time.Second
+
+	// periodicSync is the time between each call to SyncCluster
+	periodicSync = 10 * time.Minute
 )
 
 // InitializeEtcd creates a new Etcd client given
@@ -51,6 +54,12 @@ func InitializeEtcd(addrs []string, options *Config) (Store, error) {
 		}
 	}
 
+	go func() {
+		for {
+			s.client.SyncCluster()
+			time.Sleep(periodicSync)
+		}
+	}()
 	return s, nil
 }
 
@@ -114,7 +123,7 @@ func (s *Etcd) Get(key string) (*KVPair, error) {
 		}
 		return nil, err
 	}
-	return &KVPair{result.Node.Key, []byte(result.Node.Value), result.Node.ModifiedIndex}, nil
+	return &KVPair{key, []byte(result.Node.Value), result.Node.ModifiedIndex}, nil
 }
 
 // Put a value at "key"
@@ -166,8 +175,6 @@ func (s *Etcd) Exists(key string) (bool, error) {
 // Upon creating a watch, the current value will be sent to the channel.
 // Providing a non-nil stopCh can be used to stop watching.
 func (s *Etcd) Watch(key string, stopCh <-chan struct{}) (<-chan *KVPair, error) {
-	key = normalize(key)
-
 	// Get the current value
 	current, err := s.Get(key)
 	if err != nil {
@@ -178,7 +185,7 @@ func (s *Etcd) Watch(key string, stopCh <-chan struct{}) (<-chan *KVPair, error)
 	// Note: etcd will send the current value through the channel.
 	etcdWatchCh := make(chan *etcd.Response)
 	etcdStopCh := make(chan bool)
-	go s.client.Watch(key, 0, false, etcdWatchCh, etcdStopCh)
+	go s.client.Watch(normalize(key), 0, false, etcdWatchCh, etcdStopCh)
 
 	// Adapter goroutine: The goal here is to convert wathever format etcd is
 	// using into our interface.
@@ -193,7 +200,7 @@ func (s *Etcd) Watch(key string, stopCh <-chan struct{}) (<-chan *KVPair, error)
 			select {
 			case result := <-etcdWatchCh:
 				watchCh <- &KVPair{
-					result.Node.Key,
+					key,
 					[]byte(result.Node.Value),
 					result.Node.ModifiedIndex,
 				}
@@ -211,8 +218,6 @@ func (s *Etcd) Watch(key string, stopCh <-chan struct{}) (<-chan *KVPair, error)
 // Upon creating a watch, the current value will be sent to the channel.
 // Providing a non-nil stopCh can be used to stop watching.
 func (s *Etcd) WatchTree(prefix string, stopCh <-chan struct{}) (<-chan []*KVPair, error) {
-	prefix = normalize(prefix)
-
 	// Get the current value
 	current, err := s.List(prefix)
 	if err != nil {
@@ -222,7 +227,7 @@ func (s *Etcd) WatchTree(prefix string, stopCh <-chan struct{}) (<-chan []*KVPai
 	// Start an etcd watch.
 	etcdWatchCh := make(chan *etcd.Response)
 	etcdStopCh := make(chan bool)
-	go s.client.Watch(prefix, 0, true, etcdWatchCh, etcdStopCh)
+	go s.client.Watch(normalize(prefix), 0, true, etcdWatchCh, etcdStopCh)
 
 	// Adapter goroutine: The goal here is to convert wathever format etcd is
 	// using into our interface.

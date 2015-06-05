@@ -16,10 +16,6 @@ const (
 	// watched key has changed.  This affects the minimum time it takes to
 	// cancel a watch.
 	DefaultWatchWaitTime = 15 * time.Second
-
-	// MinimumTimeToLive is the minimum TTL value allowed by Consul for
-	// Ephemeral entries
-	MinimumTimeToLive = 10 * time.Second
 )
 
 // Consul embeds the client and watches
@@ -56,9 +52,7 @@ func InitializeConsul(endpoints []string, options *Config) (Store, error) {
 			s.setTimeout(options.ConnectionTimeout)
 		}
 		if options.EphemeralTTL != 0 {
-			if err := s.setEphemeralTTL(options.EphemeralTTL); err != nil {
-				return nil, err
-			}
+			s.setEphemeralTTL(options.EphemeralTTL)
 		}
 	}
 
@@ -87,19 +81,17 @@ func (s *Consul) setTimeout(time time.Duration) {
 }
 
 // SetEphemeralTTL sets the ttl for ephemeral nodes
-func (s *Consul) setEphemeralTTL(ttl time.Duration) error {
-	if ttl < MinimumTimeToLive {
-		return ErrInvalidTTL
-	}
+func (s *Consul) setEphemeralTTL(ttl time.Duration) {
 	s.ephemeralTTL = ttl
-	return nil
 }
 
-// CreateEphemeralSession creates the a global session
+// CreateEphemeralSession creates the global session
 // once that is used to delete keys at node failure
-func (s *Consul) createEphemeralSession() error {
+func (s *Consul) createEphemeralSession() (string, error) {
 	s.Lock()
 	defer s.Unlock()
+
+	// Create new session
 	if s.ephemeralSession == "" {
 		entry := &api.SessionEntry{
 			Behavior: api.SessionBehaviorDelete,
@@ -108,11 +100,23 @@ func (s *Consul) createEphemeralSession() error {
 		// Create global ephemeral keys session
 		session, _, err := s.client.Session().Create(entry, nil)
 		if err != nil {
-			return err
+			return "", err
 		}
-		s.ephemeralSession = session
+		return session, nil
 	}
-	return nil
+	return "", nil
+}
+
+// checkPreviousSession checks if the key already has a session attached
+func (s *Consul) checkActiveSession(key string) (string, error) {
+	pair, _, err := s.client.KV().Get(key, nil)
+	if err != nil {
+		return "", err
+	}
+	if pair != nil && pair.Session != "" {
+		return pair.Session, nil
+	}
+	return "", nil
 }
 
 // Normalize the key for usage in Consul
@@ -124,7 +128,11 @@ func (s *Consul) normalize(key string) string {
 // Get the value at "key", returns the last modified index
 // to use in conjunction to CAS calls
 func (s *Consul) Get(key string) (*KVPair, error) {
-	pair, meta, err := s.client.KV().Get(s.normalize(key), nil)
+	options := &api.QueryOptions{
+		AllowStale:        false,
+		RequireConsistent: true,
+	}
+	pair, meta, err := s.client.KV().Get(s.normalize(key), options)
 	if err != nil {
 		return nil, err
 	}
@@ -145,17 +153,32 @@ func (s *Consul) Put(key string, value []byte, opts *WriteOptions) error {
 	}
 
 	if opts != nil && opts.Ephemeral {
-		// Creates the global ephemeral session
-		// if it does not exist
+		// Check if there is any previous session with an active TTL
+		previous, err := s.checkActiveSession(key)
+		if err != nil {
+			return err
+		}
+
+		// Create or recover the global ephemeral session
 		if s.ephemeralSession == "" {
-			s.createEphemeralSession()
+			if s.ephemeralSession, err = s.createEphemeralSession(); err != nil {
+				return err
+			}
+		}
+
+		// If a previous session is still active for that key, use it
+		// else we use the global ephemeral session
+		if previous != "" && previous != s.ephemeralSession {
+			p.Session = previous
+		} else {
+			p.Session = s.ephemeralSession
 		}
 
 		// Create lock option with the
 		// EphemeralSession
 		lockOpts := &api.LockOptions{
 			Key:     key,
-			Session: s.ephemeralSession,
+			Session: p.Session,
 		}
 
 		// Lock and ignore if lock is held
@@ -166,11 +189,8 @@ func (s *Consul) Put(key string, value []byte, opts *WriteOptions) error {
 			lock.Lock(nil)
 		}
 
-		// Place the session on key
-		p.Session = s.ephemeralSession
-
 		// Renew the session
-		_, _, err := s.client.Session().Renew(p.Session, nil)
+		_, _, err = s.client.Session().Renew(p.Session, nil)
 		if err != nil {
 			s.ephemeralSession = ""
 			return err
@@ -346,14 +366,6 @@ func (s *Consul) AtomicPut(key string, value []byte, previous *KVPair, options *
 	if previous == nil {
 		return false, nil, ErrPreviousNotSpecified
 	}
-
-	lock, err := s.NewLock(key, nil)
-	if err != nil {
-		return false, nil, err
-	}
-
-	lock.Lock()
-	defer lock.Unlock()
 
 	p := &api.KVPair{Key: s.normalize(key), Value: value, ModifyIndex: previous.LastIndex}
 	if work, _, err := s.client.KV().CAS(p, nil); err != nil {

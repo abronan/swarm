@@ -121,7 +121,7 @@ func (s *Zookeeper) Exists(key string) (bool, error) {
 // Providing a non-nil stopCh can be used to stop watching.
 func (s *Zookeeper) Watch(key string, stopCh <-chan struct{}) (<-chan *KVPair, error) {
 	fkey := normalize(key)
-	resp, meta, eventCh, err := s.client.GetW(fkey)
+	pair, err := s.Get(key)
 	if err != nil {
 		return nil, err
 	}
@@ -132,8 +132,12 @@ func (s *Zookeeper) Watch(key string, stopCh <-chan struct{}) (<-chan *KVPair, e
 		defer close(watchCh)
 
 		// GetW returns the current value before setting the watch.
-		watchCh <- &KVPair{key, resp, uint64(meta.Version)}
+		watchCh <- pair
 		for {
+			_, _, eventCh, err := s.client.GetW(fkey)
+			if err != nil {
+				return
+			}
 			select {
 			case e := <-eventCh:
 				if e.Type == zk.EventNodeDataChanged {
@@ -183,7 +187,7 @@ func (s *Zookeeper) WatchTree(prefix string, stopCh <-chan struct{}) (<-chan []*
 					}
 				}
 			case <-stopCh:
-				// There is no way to stop GetW so just quit
+				// There is no way to stop ChildrenW so just quit
 				return
 			}
 		}
@@ -194,21 +198,35 @@ func (s *Zookeeper) WatchTree(prefix string, stopCh <-chan struct{}) (<-chan []*
 
 // List the content of a given prefix
 func (s *Zookeeper) List(prefix string) ([]*KVPair, error) {
-	prefix = normalize(prefix)
-	entries, stat, err := s.client.Children(prefix)
+	keys, stat, err := s.client.Children(normalize(prefix))
 	if err != nil {
 		return nil, err
 	}
 	kv := []*KVPair{}
-	for _, item := range entries {
-		kv = append(kv, &KVPair{prefix, []byte(item), uint64(stat.Mzxid)})
+	for _, key := range keys {
+		pair, err := s.Get(prefix + normalize(key))
+		if err != nil {
+			return nil, err
+		}
+		kv = append(kv, &KVPair{key, []byte(pair.Value), uint64(stat.Version)})
 	}
-	return kv, err
+	return kv, nil
 }
 
 // DeleteTree deletes a range of keys based on prefix
 func (s *Zookeeper) DeleteTree(prefix string) error {
-	err := s.client.Delete(normalize(prefix), -1)
+	pairs, err := s.List(prefix)
+	if err != nil {
+		return err
+	}
+	var reqs []interface{}
+	for _, pair := range pairs {
+		reqs = append(reqs, &zk.DeleteRequest{
+			Path:    normalize(prefix) + normalize(pair.Key),
+			Version: -1,
+		})
+	}
+	_, err = s.client.Multi(reqs...)
 	return err
 }
 
