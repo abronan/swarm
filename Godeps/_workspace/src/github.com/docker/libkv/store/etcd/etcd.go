@@ -14,8 +14,7 @@ import (
 // Etcd is the receiver type for the
 // Store interface
 type Etcd struct {
-	client       *etcd.Client
-	ephemeralTTL time.Duration
+	client *etcd.Client
 }
 
 type etcdLock struct {
@@ -48,9 +47,6 @@ func New(addrs []string, options *store.Config) (store.Store, error) {
 		}
 		if options.ConnectionTimeout != 0 {
 			s.setTimeout(options.ConnectionTimeout)
-		}
-		if options.EphemeralTTL != 0 {
-			s.setEphemeralTTL(options.EphemeralTTL)
 		}
 	}
 
@@ -91,12 +87,6 @@ func (s *Etcd) setTLS(tls *tls.Config) {
 // setTimeout sets the timeout used for connecting to the store
 func (s *Etcd) setTimeout(time time.Duration) {
 	s.client.SetDialTimeout(time)
-}
-
-// setEphemeralHeartbeat sets the heartbeat value to notify
-// that a node is alive
-func (s *Etcd) setEphemeralTTL(time time.Duration) {
-	s.ephemeralTTL = time
 }
 
 // createDirectory creates the entire path for a directory
@@ -143,8 +133,8 @@ func (s *Etcd) Put(key string, value []byte, opts *store.WriteOptions) error {
 
 	// Default TTL = 0 means no expiration
 	var ttl uint64
-	if opts != nil && opts.Ephemeral {
-		ttl = uint64(s.ephemeralTTL.Seconds())
+	if opts != nil && opts.TTL > 0 {
+		ttl = uint64(opts.TTL.Seconds())
 	}
 
 	if _, err := s.client.Set(key, string(value), ttl); err != nil {
@@ -194,12 +184,6 @@ func (s *Etcd) Exists(key string) (bool, error) {
 // be sent to the channel. Providing a non-nil stopCh can
 // be used to stop watching.
 func (s *Etcd) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVPair, error) {
-	// Get the current value
-	current, err := s.Get(key)
-	if err != nil {
-		return nil, err
-	}
-
 	// Start an etcd watch.
 	// Note: etcd will send the current value through the channel.
 	etcdWatchCh := make(chan *etcd.Response)
@@ -211,6 +195,12 @@ func (s *Etcd) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVPair, 
 	watchCh := make(chan *store.KVPair)
 	go func() {
 		defer close(watchCh)
+
+		// Get the current value
+		current, err := s.Get(key)
+		if err != nil {
+			return
+		}
 
 		// Push the current value through the channel.
 		watchCh <- current
@@ -243,12 +233,6 @@ func (s *Etcd) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVPair, 
 // will be sent to the channel .Providing a non-nil stopCh can
 // be used to stop watching.
 func (s *Etcd) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*store.KVPair, error) {
-	// Get child values
-	current, err := s.List(directory)
-	if err != nil {
-		return nil, err
-	}
-
 	// Start the watch
 	etcdWatchCh := make(chan *etcd.Response)
 	etcdStopCh := make(chan bool)
@@ -259,6 +243,12 @@ func (s *Etcd) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*st
 	watchCh := make(chan []*store.KVPair)
 	go func() {
 		defer close(watchCh)
+
+		// Get child values
+		current, err := s.List(directory)
+		if err != nil {
+			return
+		}
 
 		// Push the current value through the channel.
 		watchCh <- current
@@ -432,7 +422,7 @@ func (l *etcdLock) Lock() (<-chan struct{}, error) {
 			lastIndex = resp.Node.ModifiedIndex
 		}
 
-		_, err = l.client.CompareAndSwap(key, l.value, l.ttl, "", lastIndex)
+		l.last, err = l.client.CompareAndSwap(key, l.value, l.ttl, "", lastIndex)
 
 		if err == nil {
 			// Leader section
@@ -467,7 +457,7 @@ func (l *etcdLock) holdLock(key string, lockHeld chan struct{}, stopLocking chan
 	for {
 		select {
 		case <-update.C:
-			l.last, err = l.client.Update(key, l.value, l.ttl)
+			l.last, err = l.client.CompareAndSwap(key, l.value, l.ttl, "", l.last.Node.ModifiedIndex)
 			if err != nil {
 				return
 			}

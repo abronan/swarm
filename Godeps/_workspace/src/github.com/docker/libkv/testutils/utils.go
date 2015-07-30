@@ -18,13 +18,13 @@ func RunTestStore(t *testing.T, kv store.Store, backup store.Store) {
 	testAtomicPutCreate(t, kv)
 	testAtomicDelete(t, kv)
 	testLockUnlock(t, kv)
-	testPutEphemeral(t, kv, backup)
+	testPutTTL(t, kv, backup)
 	testList(t, kv)
 	testDeleteTree(t, kv)
 }
 
 func testPutGetDelete(t *testing.T, kv store.Store) {
-	key := "foo"
+	key := "testfoo"
 	value := []byte("bar")
 
 	// Put the key
@@ -288,6 +288,11 @@ func testLockUnlock(t *testing.T, kv store.Store) {
 	err = lock.Unlock()
 	assert.NoError(t, err)
 
+	// Lock should succeed again
+	lockChan, err = lock.Lock()
+	assert.NoError(t, err)
+	assert.NotNil(t, lockChan)
+
 	// Get should work
 	pair, err = kv.Get(key)
 	assert.NoError(t, err)
@@ -298,7 +303,7 @@ func testLockUnlock(t *testing.T, kv store.Store) {
 	assert.NotEqual(t, pair.LastIndex, 0)
 }
 
-func testPutEphemeral(t *testing.T, kv store.Store, otherConn store.Store) {
+func testPutTTL(t *testing.T, kv store.Store, otherConn store.Store) {
 	firstKey := "first"
 	firstValue := []byte("foo")
 
@@ -306,11 +311,11 @@ func testPutEphemeral(t *testing.T, kv store.Store, otherConn store.Store) {
 	secondValue := []byte("bar")
 
 	// Put the first key with the Ephemeral flag
-	err := otherConn.Put(firstKey, firstValue, &store.WriteOptions{Ephemeral: true})
+	err := otherConn.Put(firstKey, firstValue, &store.WriteOptions{TTL: 2 * time.Second})
 	assert.NoError(t, err)
 
 	// Put a second key with the Ephemeral flag
-	err = otherConn.Put(secondKey, secondValue, &store.WriteOptions{Ephemeral: true})
+	err = otherConn.Put(secondKey, secondValue, &store.WriteOptions{TTL: 2 * time.Second})
 	assert.NoError(t, err)
 
 	// Get on firstKey should work

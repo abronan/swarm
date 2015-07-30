@@ -59,9 +59,7 @@ func (s *Discovery) Initialize(uris string, heartbeat time.Duration, ttl time.Du
 	s.store, err = libkv.NewStore(
 		s.backend,
 		addrs,
-		&store.Config{
-			EphemeralTTL: s.ttl,
-		},
+		nil,
 	)
 
 	return err
@@ -131,7 +129,7 @@ func (s *Discovery) Watch(stopCh <-chan struct{}) (<-chan discovery.Entries, <-c
 
 // Register is exported
 func (s *Discovery) Register(addr string) error {
-	opts := &store.WriteOptions{Ephemeral: true, Heartbeat: s.heartbeat}
+	opts := &store.WriteOptions{TTL: s.heartbeat}
 	return s.store.Put(path.Join(s.path, addr), []byte(addr), opts)
 }
 

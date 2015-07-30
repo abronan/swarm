@@ -39,7 +39,6 @@ var (
 type Config struct {
 	TLS               *tls.Config
 	ConnectionTimeout time.Duration
-	EphemeralTTL      time.Duration
 }
 
 // Store represents the backend K/V storage
@@ -97,8 +96,7 @@ type KVPair struct {
 
 // WriteOptions contains optional request parameters
 type WriteOptions struct {
-	Heartbeat time.Duration
-	Ephemeral bool
+	TTL time.Duration
 }
 
 // LockOptions contains optional request parameters
@@ -106,10 +104,6 @@ type LockOptions struct {
 	Value []byte        // Optional, value to associate with the lock
 	TTL   time.Duration // Optional, expiration ttl associated with the lock
 }
-
-// WatchCallback is used for watch methods on keys
-// and is triggered on key change
-type WatchCallback func(entries ...*KVPair)
 
 // Locker provides locking mechanism on top of the store.
 // Similar to `sync.Lock` except it may return errors.
