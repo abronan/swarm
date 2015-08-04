@@ -124,21 +124,24 @@ func (c *Cluster) createContainer(config *cluster.ContainerConfig, name string, 
 		return nil, err
 	}
 
-	if nn, ok := c.engines[n.ID]; ok {
-		container, err := nn.Create(config, name, true)
-		if err != nil {
-			return nil, err
-		}
-
-		st := &state.RequestedState{
-			ID:     container.Id,
-			Name:   name,
-			Config: config,
-		}
-		return container, c.store.Add(container.Id, st)
+	c.RLock()
+	nn, ok := c.engines[n.ID]
+	c.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("The selected engine no longer exists in the cluster.")
 	}
 
-	return nil, nil
+	container, err := nn.Create(config, name, true)
+	if err != nil {
+		return nil, err
+	}
+
+	st := &state.RequestedState{
+		ID:     container.Id,
+		Name:   name,
+		Config: config,
+	}
+	return container, c.store.Add(container.Id, st)
 }
 
 // RemoveContainer aka Remove a container from the cluster. Containers should
