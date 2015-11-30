@@ -260,6 +260,10 @@ type Discovery interface {
 }
 ```
 
+If you want to contribute a new key/value discovery backend (as of consul/etcd/zookeeper),
+you should look into [docker/libkv](https://github.com/docker/libkv), which includes the
+interface to implement and all the relevant details and examples to add a backend k/v store.
+
 ### Initialize
 
 The parameters are `discovery` location without the scheme and a heartbeat (in seconds).
